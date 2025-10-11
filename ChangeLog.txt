@@ -6,4 +6,15 @@
 2025-10-11 4:00 UTC+0200 Damian Szlage (damian.szlage/at/driftzone.pl)
     + First public release of srs-resolver v1.0.0
     + Initial commit
-
+2025-10-11 14:30 UTC+0200 Damian Szlage (damian.szlage/at/driftzone.pl)
+    * /Makefile
+      + Added installation target
+      * Improved directory creation in install target
+    
+    * /config/srs-resolver.conf
+      + Commented out default options
+      * default log_level option
+      * default fallback_address option
+    
+    * /README.md
+      * Default config file options

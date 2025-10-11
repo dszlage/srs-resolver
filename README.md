@@ -48,10 +48,19 @@ sudo make install
 
 Create (if not exists) config file /etc/srs-resolver/srs-resolver.conf:
 
+   # Network interface and port to listen on ( recommended: localhost only )
+   # default: 127.0.0.1:10022
    listen = "127.0.0.1:10022"
+   # Path to log file
+   # default: /var/log/srs-resolver.log
    log_file = "/var/log/srs-resolver.log"
-   log_level = "error"  # options: error, info, debug
-   fallback_address = "root@yourdomain.com"
+   # Logging level: error, info, debug
+   # default: error
+   log_level = "error"
+   # Fallback address if decoding fails (optional)
+   # If not set and decoding fails, the original address is returned
+   # default: root@localhost
+   fallback_address = "root@localhost"
 
 ```
 Set up systemd (run srs-resolver as a service - daemonize):
