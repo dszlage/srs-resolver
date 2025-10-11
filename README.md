@@ -53,57 +53,88 @@ Create (if not exists) config file /etc/srs-resolver/srs-resolver.conf:
    log_level = "error"  # options: error, info, debug
    fallback_address = "root@yourdomain.com"
 
+```
 Set up systemd (run srs-resolver as a service - daemonize):
 
+```bash
    sudo cp systemd/srs-resolver.service /etc/systemd/system/
    sudo systemctl daemon-reexec
    sudo systemctl enable --now srs-resolver
+```
 
-Postfix Integration
+---
 
-   To make Postfix rewrite SRS addresses for autoresponders, add to /etc/postfix/main.cf:
+## Postfix Integration
+
+To make Postfix rewrite SRS addresses for autoresponders, add to /etc/postfix/main.cf:
 
    recipient_canonical_maps = tcp:127.0.0.1:10022
    recipient_canonical_classes = envelope_recipient
 
-   sudo systemctl reload postfix
-
+```bash
+sudo systemctl reload postfix
+```
 This ensures that Return-Path headers are decoded before reaching autoresponders like dovecot or vacation.
 
-Example
+---
 
-   Request:
-   get SRS0=xyz=12345=original.com=localpart
-   
-   Response:
-   200 localpart@original.com
+## Example
 
-   If Invalid or malformed input:
-   500 invalid request
-   
-   If a fallback address is configured, it will respond with:
-   200 root@domain.com
-   (or whatever is set in fallback_address)
+Request:
+get SRS0=xyz=12345=original.com=localpart
 
-## Installation
+Response:
+200 localpart@original.com
+If Invalid or malformed input:
+500 invalid request
+
+If a fallback address is configured, it will respond with:
+200 root@domain.com
+(or whatever is set in fallback_address)
+
+---
+
+## Testing
 
 Run the included test script:
-   ./test/test_srs_resolver.sh
+```bash
+./test/test_srs_resolver.sh
+```
+Make sure the service is running on 127.0.0.1:12345. The script will test:
+Valid SRS0/SRS1 addresses
+Clean email addresses
+Invalid/malformed inputs
+Unsupported protocol commands
 
-   Make sure the service is running on 127.0.0.1:12345. The script will test:
-   Valid SRS0/SRS1 addresses
-   Clean email addresses
-   Invalid/malformed inputs
-   Unsupported protocol commands
+---
 
-Security Note
+## Security Note
 
-   srs-resolver intentionally bypasses parts of RFC SRS behavior in order to make autoresponders functional in edge cases. Use it at your own risk in trusted environments only.
-   The service only listens on localhost by default
-   No external network exposure is recommended
-   It does not perform cryptographic validation of SRS hashes
+srs-resolver intentionally bypasses parts of RFC SRS behavior in order to make autoresponders functional in edge cases. Use it at your own risk in trusted environments only.
+The service only listens on localhost by default
+No external network exposure is recommended
+It does not perform cryptographic validation of SRS hashes
 
-📖 License
+---
+
+## License
 
 This project is licensed under the GNU GPLv3.
 You are free to use, modify, and distribute the code, as long as your modifications are also open-source under the same license.
+
+See LICENSE: https://www.gnu.org/licenses/gpl-3.0.txt
+
+---
+
+## Contributions
+
+Bug reports, suggestions and pull requests are welcome!
+You can also open issues or discussions at:
+
+🔗 https://github.com/dszlage/srs-resolver/issues
+
+## Acknowledgements
+
+Inspired by postsrsd, but works in reverse.
+
+Created to fix real production problems with autoresponders and SRS.
