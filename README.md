@@ -68,8 +68,8 @@ Set up systemd (run srs-resolver as a service - daemonize):
 
 To make Postfix rewrite SRS addresses for autoresponders, add to /etc/postfix/main.cf:
 
-   recipient_canonical_maps = tcp:127.0.0.1:10022
-   recipient_canonical_classes = envelope_recipient
+recipient_canonical_maps = tcp:127.0.0.1:10022
+recipient_canonical_classes = envelope_recipient
 
 ```bash
 sudo systemctl reload postfix
