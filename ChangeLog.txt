@@ -1,0 +1,9 @@
+/* Encoding: UTF-8 (No BOM)  Notation (in 5th position):
+     * Change, ! Fix, % Optimization, + Addition, - Removal, ; Comment
+   Entries may not always be in chronological/commit order.
+   See license at the end of file. */
+
+2025-10-11 4:00 UTC+0200 Damian Szlage (damian.szlage/at/driftzone.pl)
+    + First public release of srs-resolver v1.0.0
+    + Initial commit
+

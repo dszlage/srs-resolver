@@ -1,0 +1,21 @@
+# Binaries
+bin/*
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+*.bak
+
+# Editor directories
+.idea/
+.vscode/
+*.code-workspace
+
+# Test results
+*.test
+*.coverprofile
+
+# System files
+.DS_Store
+Thumbs.db
