@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Install GitHub CLI
+        uses: cli/gh-action@v2
+      
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -68,10 +71,22 @@ jobs:
           VERSION=${{ steps.vars.outputs.version }}
           cd dist
           tar -czf srs-resolver-$VERSION-linux-amd64.tar.gz srs-resolver-$VERSION
-
-      - name: Upload release archive
+  
+      - name: Upload tagged release
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
           files: dist/srs-resolver-${{ steps.vars.outputs.version }}-linux-amd64.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload test release
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          gh release delete test -y || true
+          gh release create test \
+            --title "Test Build" \
+            --notes "Test build created via workflow_dispatch" \
+            dist/srs-resolver-${{ steps.vars.outputs.version }}-linux-amd64.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

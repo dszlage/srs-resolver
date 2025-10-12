@@ -54,3 +54,10 @@
     * /README.md
       ! Installation instructions updated
       + Added installation instructions with systemd service
+
+2025-10-13 01:45 UTC+0200 Damian Szlage (damian.szlage/at/driftzone.pl)
+    ! /.github/workflows/build.yml
+      + Manage the "test" tag when use workflow_dispatch event
+      + Improved test release creation
+    ! /README.md
+      ! Formatting fixes

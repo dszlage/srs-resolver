@@ -3,9 +3,9 @@
 **A lightweight SRS resolver for Postfix+Dovecot autoresponders**  
 Author: Damian Szlage  
 License: GPLv3  
-Repository: [https://github.com/dszlage/srs-resolver](https://github.com/dszlage/srs-resolver)
-Release: [https://github.com/dszlage/srs-resolver/releases](https://github.com/dszlage/srs-resolver/releases)
-Latest release: [https://github.com/dszlage/srs-resolver/releases/latest](https://github.com/dszlage/srs-resolver/releases/latest)
+Repository: [https://github.com/dszlage/srs-resolver](https://github.com/dszlage/srs-resolver)  
+Release: [https://github.com/dszlage/srs-resolver/releases](https://github.com/dszlage/srs-resolver/releases)  
+Latest release: [https://github.com/dszlage/srs-resolver/releases/latest](https://github.com/dszlage/srs-resolver/releases/latest)  
 
 ---
 
