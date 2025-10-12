@@ -13,7 +13,9 @@ jobs:
 
     steps:
       - name: Install GitHub CLI
-        uses: cli/gh-action@v2
+        run: |
+          sudo apt update
+          sudo apt install -y gh
       
       - name: Checkout repository
         uses: actions/checkout@v3

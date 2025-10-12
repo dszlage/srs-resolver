@@ -61,3 +61,9 @@
       + Improved test release creation
     ! /README.md
       ! Formatting fixes
+
+2025-10-13 01:55 UTC+0200 Damian Szlage (damian.szlage/at/driftzone.pl)
+    ! /.github/workflows/build.yml
+      ! Install GitHub CLI step
+    ! /README.md
+      ! Formatting fixes
