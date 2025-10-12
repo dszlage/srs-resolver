@@ -7,11 +7,8 @@ Type=simple
 ExecStart=/usr/local/bin/srs-resolver
 Restart=on-failure
 RestartSec=5s
-User=postfix
-Group=postfix
-WorkingDirectory=/var/lib/srs-resolver
-StandardOutput=null
-StandardError=journal
+StandardOutput=inherit
+StandardError=inherit
 
 [Install]
 WantedBy=multi-user.target

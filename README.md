@@ -4,6 +4,8 @@
 Author: Damian Szlage  
 License: GPLv3  
 Repository: [https://github.com/dszlage/srs-resolver](https://github.com/dszlage/srs-resolver)
+Release: [https://github.com/dszlage/srs-resolver/releases](https://github.com/dszlage/srs-resolver/releases)
+Latest release: [https://github.com/dszlage/srs-resolver/releases/latest](https://github.com/dszlage/srs-resolver/releases/latest)
 
 ---
 
@@ -40,27 +42,17 @@ Autoresponders and vacation filters, according to RFC specifications, send repli
 
 ## Installation
 
-Build from source:
+--- Requirements: Go 1.16+ (for building from source) ---
+
+Build from source and install:
 
 ```bash
+mkdir -p ~/srs-resolver
+cd ~/srs-resolver
+git clone https://github.com/dszlage/srs-resolver.git .
+
 make build
 sudo make install
-
-Create (if not exists) config file /etc/srs-resolver/srs-resolver.conf:
-
-   # Network interface and port to listen on ( recommended: localhost only )
-   # default: 127.0.0.1:10022
-   listen = "127.0.0.1:10022"
-   # Path to log file
-   # default: /var/log/srs-resolver.log
-   log_file = "/var/log/srs-resolver.log"
-   # Logging level: error, info, debug
-   # default: error
-   log_level = "error"
-   # Fallback address if decoding fails (optional)
-   # If not set and decoding fails, the original address is returned
-   # default: root@localhost
-   fallback_address = "root@localhost"
 
 ```
 Set up systemd (run srs-resolver as a service - daemonize):
@@ -68,7 +60,34 @@ Set up systemd (run srs-resolver as a service - daemonize):
 ```bash
    sudo cp systemd/srs-resolver.service /etc/systemd/system/
    sudo systemctl daemon-reexec
-   sudo systemctl enable --now srs-resolver
+   sudo systemctl daemon-reload
+   sudo systemctl enable srs-resolver
+   sudo systemctl start srs-resolver
+```
+
+Build and run installation script:
+
+```bash
+mkdir -p ~/srs-resolver
+cd ~/srs-resolver
+git clone https://github.com/dszlage/srs-resolver.git .
+
+make
+sudo ./install.sh
+```
+
+Download precompiled binary (Linux x86_64):
+
+```bash
+cd /tmp
+wget https://github.com/dszlage/srs-resolver/releases/latest/download/srs-resolver-<version>-linux-amd64.tar.gz
+``` 
+or 
+```bash
+wget https://github.com/dszlage/srs-resolver/releases/latest
+tar -xzf srs-resolver-<version>-linux-amd64.tar.gz
+cd srs-resolver-<version>
+sudo ./install.sh
 ```
 
 ---

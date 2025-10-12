@@ -1,0 +1,77 @@
+name: Build and Release srs-resolver
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    name: Build Linux binary
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Extract version from tag
+        id: vars
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "version=${GITHUB_REF##*/}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=test" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build srs-resolver
+        run: |
+          VERSION=${{ steps.vars.outputs.version }}
+          mkdir -p dist/srs-resolver-$VERSION
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/srs-resolver-$VERSION/srs-resolver ./cmd/srs-resolver
+
+      - name: Copy extra files
+        run: |
+          VERSION=${{ steps.vars.outputs.version }}
+          cp config/srs-resolver.conf dist/srs-resolver-$VERSION/
+          cp systemd/srs-resolver.service dist/srs-resolver-$VERSION/
+      
+      - name: Generate install.sh
+        run: |
+          VERSION=${{ steps.vars.outputs.version }}
+          cat > dist/srs-resolver-$VERSION/install.sh <<'EOF'
+          #!/bin/bash
+          set -e
+
+          echo "Installing srs-resolver..."
+          install -m 755 srs-resolver /usr/local/bin/srs-resolver
+          install -Dm644 srs-resolver.conf /etc/srs-resolver/srs-resolver.conf
+          install -Dm644 srs-resolver.service /etc/systemd/system/srs-resolver.service
+
+          systemctl daemon-reexec
+          systemctl daemon-reload
+          systemctl enable srs-resolver.service
+          systemctl start srs-resolver.service
+
+          echo "Done."
+          EOF
+
+          chmod +x dist/srs-resolver-$VERSION/install.sh
+
+      - name: Create .tar.gz archive
+        run: |
+          VERSION=${{ steps.vars.outputs.version }}
+          cd dist
+          tar -czf srs-resolver-$VERSION-linux-amd64.tar.gz srs-resolver-$VERSION
+
+      - name: Upload release archive
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/srs-resolver-${{ steps.vars.outputs.version }}-linux-amd64.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

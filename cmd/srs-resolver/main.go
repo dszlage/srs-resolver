@@ -28,6 +28,12 @@ import (
 	"os"
 	"strings"
 
+	// For dropping privileges
+	"os/user"
+	"strconv"
+	"syscall"
+
+	// For TOML parsing
 	"github.com/BurntSushi/toml"
 )
 
@@ -56,6 +62,8 @@ type Config struct {
 	LogFile         string `toml:"log_file"`
 	LogLevel        string `toml:"log_level"`
 	FallbackAddress string `toml:"fallback_address"`
+	DropUser        string `toml:"drop_user"`
+	DropGroup       string `toml:"drop_group"`
 }
 
 // LoadConfig loads TOML config from file
@@ -96,7 +104,10 @@ func InitLogging(cfg *Config) error {
 	return nil
 }
 
-// Logging helpers
+// / Logging helpers
+func logFatal(format string, a ...any) {
+	log.Fatalf("[FATAL] "+format, a...)
+}
 func logError(format string, a ...any) {
 	log.Printf("[ERROR] "+format, a...)
 }
@@ -125,25 +136,32 @@ func main() {
 	cfg, err := LoadConfig("/etc/srs-resolver/srs-resolver.conf")
 
 	if err != nil {
-		fmt.Println("Config error: ", err)
+		fmt.Println("[FATAL] Config error: ", err)
 		os.Exit(1)
 	}
 
 	if err := InitLogging(cfg); err != nil {
-		fmt.Println("Logging error: ", err)
+		fmt.Println("[FATAL] Logging error: ", err)
 		os.Exit(1)
+	}
+
+	logInfo("srs-resolver version %s starting...", version)
+
+	// Drop privileges if configured
+	if err := dropPrivileges(cfg.DropUser, cfg.DropGroup); err != nil {
+		logFatal("Dropping privileges failed: %v", err)
 	}
 
 	ln, err := net.Listen("tcp", cfg.Listen)
 	if err != nil {
-		log.Fatalf("Błąd podczas nasłuchu: %v", err)
+		logFatal("Listen error: %v", err)
 	}
-	logInfo("Nasłuch na %s", cfg.Listen)
+	logInfo("Listening on %s", cfg.Listen)
 
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			log.Printf("Błąd połączenia: %v", err)
+			logError("Connection error: %v", err)
 			continue
 		}
 		go handle(conn, cfg)
@@ -168,85 +186,142 @@ func handle(conn net.Conn, cfg *Config) {
 
 	address := strings.TrimSpace(line[4:])
 
-	// Szybka walidacja - jeśli to nie SRS, sprawdź czy to poprawny email
+	// Fast validation - if not SRS, check if it's a clean email
+	// We skip full validation for best performance
 	if !strings.HasPrefix(address, "SRS0=") && !strings.HasPrefix(address, "SRS1=") {
 		if isCleanEmail(address) {
-			logDebug("Poprawny adres: %s, nie wymaga rozwiązywania", address)
+			logDebug("Address: %s, no decoding required", address)
 			fmt.Fprintf(conn, "200 %s\n", address)
 			return
 		}
-		// Nie jest SRS ani poprawnym emailem
+		// Fallback or error
 		if cfg.FallbackAddress != "" {
-			logError("Błędny adres: %s, zwracam fallback_address: %s", address, cfg.FallbackAddress)
+			logError("Invalid address: %s, returning fallback_address: %s", address, cfg.FallbackAddress)
 			fmt.Fprintf(conn, "200 %s\n", cfg.FallbackAddress)
 		} else {
-			logError("Błędny adres: %s, brak ustawionego fallback_address, 500 invalid request", address)
+			logError("Invalid address: %s, no fallback_address set, 500 invalid request", address)
 			fmt.Fprintf(conn, "500 invalid request\n")
 		}
 		return
 	}
 
-	// To jest adres SRS - dekoduj go
+	// It's SRS, try to decode
 	decoded, err := decodeSRS(address)
 	if err != nil {
 		if cfg.FallbackAddress != "" {
-			logError("Błędny SRS: %s, zwracam fallback_address: %s", address, cfg.FallbackAddress)
+			logError("Invalid SRS: %s (%v), returning fallback_address: %s", address, err, cfg.FallbackAddress)
 			fmt.Fprintf(conn, "200 %s\n", cfg.FallbackAddress)
 		} else {
-			logError("Błędny SRS: %s, brak ustawionego fallback_address, 500 invalid request", address)
+			logError("Invalid SRS: %s (%v), no fallback_address set, 500 invalid request", address, err)
 			fmt.Fprintf(conn, "500 invalid request\n")
 		}
 	} else {
-		logInfo("Rozwiązano: %s → %s", address, decoded)
+		logInfo("Resolved: %s → %s", address, decoded)
 		fmt.Fprintf(conn, "200 %s\n", decoded)
 	}
 }
 
 func decodeSRS(srs string) (string, error) {
-	// Prefiks SRS sprawdzany jest już w funkcji handle(), nie trzeba powtarzać walidacji
 
-	// Używamy wyrażenia regularnego, które przechwytuje *wszystko* po 4. znaku '='
 	// SRS0=hash=time=domain=full_local_part@something
 	// SRS1=hash=time=domain=full_local_part@something
 	parts := strings.SplitN(srs, "=", 5)
 	if len(parts) != 5 {
-		return "", fmt.Errorf("nieprawidłowy format SRS - nieprawidłowa liczba części")
+		return "", fmt.Errorf("SRS format - wrong number of parts")
 	}
 
-	// parts[3] = domena oryginalna
-	// parts[4] = lokalna część (która może zawierać @forwarder)
+	// parts[3] = original domain
+	// parts[4] = local part (which may contain @forwarder)
 	domain := parts[3]
 	local := parts[4]
 
-	// Jeśli wygląda już jak pełny adres, to tylko przestawiamy domenę
+	// If it already looks like a full address, just switch the domain
 	if strings.Contains(local, "@") {
-		// np. damian.szlage@attmail.pl → damian.szlage@driftzone24.pl
+		// e.g. user@forwarder.com → user@domain.com
 		user := strings.Split(local, "@")[0]
 		return fmt.Sprintf("%s@%s", user, domain), nil
 	}
 
-	// Zwykły przypadek
+	// Normal case
 	return fmt.Sprintf("%s@%s", local, domain), nil
 }
 
 func isCleanEmail(s string) bool {
-	// Nie może zawierać spacji, nawiasów, przecinków itd.
+	// RFC 5321, 5322 Not allowed characters
 	if strings.ContainsAny(s, notAllowedChars) {
 		return false
 	}
 
-	// Musi zawierać dokładnie jedno "@"
+	// Must contain exactly one "@" symbol
 	if strings.Count(s, "@") != 1 {
 		return false
 	}
-	// Podział na lokalną część i domenę
+	// Split into local part and domain
 	parts := strings.Split(s, "@")
 	if len(parts[0]) == 0 || len(parts[1]) < 3 {
 		return false
 	}
-	// Domena powinna zawierać przynajmniej jedną kropkę
+	// Domain must contain at least one dot
 	if !strings.Contains(parts[1], ".") {
 		return false
 	}
 	return true
+}
+
+func dropPrivileges(targetUser string, targetGroup string) error {
+
+	// ========== set GID section ==========
+	if targetGroup != "" {
+
+		g, err := user.LookupGroup(targetGroup)
+		if err != nil {
+			return fmt.Errorf("lookup group: %v", err)
+		}
+
+		gid, err := strconv.Atoi(g.Gid)
+		if err != nil {
+			return fmt.Errorf("bad GID: %v", err)
+		}
+
+		if err := syscall.Setgid(gid); err != nil {
+			return fmt.Errorf("setgid failed: %v", err)
+		}
+	}
+
+	// ========== set UID section ==========
+	if targetUser != "" {
+		u, err := user.Lookup(targetUser)
+		if err != nil {
+			return fmt.Errorf("lookup user: %v", err)
+		}
+
+		uid, err := strconv.Atoi(u.Uid)
+		if err != nil {
+			return fmt.Errorf("bad UID: %v", err)
+		}
+
+		if err := syscall.Setuid(uid); err != nil {
+			return fmt.Errorf("setuid failed: %v", err)
+		}
+	}
+
+	// ========== check UId/GId section ==========
+	newUser, err := user.LookupId(strconv.Itoa(syscall.Geteuid()))
+	if err != nil {
+		return fmt.Errorf("lookup new user: %v", err)
+	}
+
+	newGroup, err := user.LookupGroupId(strconv.Itoa(syscall.Getegid()))
+	if err != nil {
+		return fmt.Errorf("lookup new group: %v", err)
+	}
+
+	if newUser.Username == "root" {
+		logError("Warning! Running as root user! Not dropping privileges! Be careful!")
+	}
+	if newGroup.Name == "root" {
+		logError("Warning! Running as root group! Not dropping privileges! Be careful!")
+	}
+	logInfo("Running as user: %s (UID %s), group: %s (GID %s)", newUser.Username, newUser.Uid, newGroup.Name, newGroup.Gid)
+	return nil
 }

@@ -6,6 +6,7 @@
 2025-10-11 4:00 UTC+0200 Damian Szlage (damian.szlage/at/driftzone.pl)
     + First public release of srs-resolver v1.0.0
     + Initial commit
+
 2025-10-11 14:30 UTC+0200 Damian Szlage (damian.szlage/at/driftzone.pl)
     * /Makefile
       + Added installation target
@@ -18,3 +19,38 @@
     
     * /README.md
       * Default config file options
+
+2025-10-13 00:30 UTC+0200 Damian Szlage (damian.szlage/at/driftzone.pl)
+    * /cmd/srs-resolver/main.go
+      + Dropped privileges if configured (drop_user, drop_group)
+        + dropPrivileges() function to drop privileges
+      + Log version on startup
+      * Improved logging helpers
+        + logFatal() function to log fatal errors
+      * Improved log messages (in English)
+      * Comments language to English
+    
+    * /config/srs-resolver.conf
+      + Options: drop_user, drop_group
+    
+    * /cmd/srs-resolver/main.go
+      + Log version on startup
+      + Drop privileges if configured (drop_user, drop_group)
+        + dropPrivileges() function to drop privileges
+      * Improved logging helpers
+        + logFatal() function to log fatal errors
+      * Improved log messages (in English)
+    
+    * /systemd/srs-resolver.service
+      ! Redirected stdout and stderr to systemd (StandardOutput=inherit, StandardError=inherit)
+      - Removed user, group and working directory settings (handled by drop privileges in the code now)
+
+    + /install.sh
+      ; Installation script to install binary, config file, and systemd service
+    
+    + /.github/workflows/build.yml
+      ; GitHub Actions workflow to build the project and release on push new version tag (beta)
+    
+    * /README.md
+      ! Installation instructions updated
+      + Added installation instructions with systemd service
