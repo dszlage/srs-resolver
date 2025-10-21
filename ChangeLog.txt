@@ -67,3 +67,34 @@
       ! Install GitHub CLI step
     ! /README.md
       ! Formatting fixes
+
+2025-10-21 12:46 UTC+0200 Damian Szlage (damian.szlage/at/driftzone.pl)
+    * /cmd/srs-resolver/main.go
+      % Major performance optimization - early email validation
+        % Added fast path for normal email addresses (most common case)
+        % Early return for clean emails without SRS processing
+      
+      * Changed response logic for better Postfix integration
+        * Normal emails now return "500 no match" instead of "200 <address>"
+        * Failed SRS decoding returns "500 no match" instead of "500 invalid request"
+        * Read errors now return "400 read error" instead of "500 read error"
+      
+      * Improved logging messages
+        * More descriptive log messages with address context
+        * Added angle brackets around addresses for better readability
+        * Categorized log messages: [SRS], [ADDR] prefixes
+      
+      * Enhanced SRS decoding restrictions
+        * Limited SRS parts to exactly 5 components for security
+      
+      * Code quality improvements
+        * Improved code comments and documentation
+        * Better error message formatting following Go conventions
+      
+      * Version bump to 1.0.1
+    
+    * /test_srs_resolver.sh
+      * Anonymized test addresses for privacy
+      * Translated comments and output to English
+    * /README.md
+      ! Minor corrections in documentation

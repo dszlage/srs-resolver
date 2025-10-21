@@ -35,7 +35,7 @@ Autoresponders and vacation filters, according to RFC specifications, send repli
 - Parses SRS0 and SRS1 formats
 - Fallback to a default address if decoding fails (fallback_address in config)
 - Works as a secure localhost-only TCP service (Postfix-compatible)
-- Simple protocol: `get <address>` → `200 <clean email>` or `500 error`
+- Simple protocol: `get <address>` → `200 <clean email>`, `500 no match` or `500 error`
 - Configurable logging and fallback
 
 ---
@@ -128,7 +128,7 @@ Run the included test script:
 ```bash
 ./test/test_srs_resolver.sh
 ```
-Make sure the service is running on 127.0.0.1:12345. The script will test:
+Make sure the service is running on 127.0.0.1:10022. The script will test:
 Valid SRS0/SRS1 addresses
 Clean email addresses
 Invalid/malformed inputs

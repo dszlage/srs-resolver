@@ -46,7 +46,7 @@ var (
 // LogLevel type and constants
 type LogLevel int
 
-const version = "1.0.0"
+const version = "1.0.1"
 const notAllowedChars = " <>(),;=\"" // Characters not allowed in a clean email address
 const (
 	LogError LogLevel = iota
@@ -174,7 +174,7 @@ func handle(conn net.Conn, cfg *Config) {
 
 	line, err := reader.ReadString('\n')
 	if err != nil {
-		fmt.Fprintf(conn, "500 read error\n")
+		fmt.Fprintf(conn, "400 read error\n")
 		return
 	}
 
@@ -186,46 +186,48 @@ func handle(conn net.Conn, cfg *Config) {
 
 	address := strings.TrimSpace(line[4:])
 
-	// Fast validation - if not SRS, check if it's a clean email
-	// We skip full validation for best performance
-	if !strings.HasPrefix(address, "SRS0=") && !strings.HasPrefix(address, "SRS1=") {
-		if isCleanEmail(address) {
-			logDebug("Address: %s, no decoding required", address)
-			fmt.Fprintf(conn, "200 %s\n", address)
-			return
-		}
-		// Fallback or error
-		if cfg.FallbackAddress != "" {
-			logError("Invalid address: %s, returning fallback_address: %s", address, cfg.FallbackAddress)
-			fmt.Fprintf(conn, "200 %s\n", cfg.FallbackAddress)
-		} else {
-			logError("Invalid address: %s, no fallback_address set, 500 invalid request", address)
-			fmt.Fprintf(conn, "500 invalid request\n")
-		}
+	// New logic
+	if isCleanEmail(address) {
+		logInfo("Normal address: <%s> - no rewrite needed", address)
+		fmt.Fprintf(conn, "500 no match\n")
 		return
 	}
 
-	// It's SRS, try to decode
-	decoded, err := decodeSRS(address)
-	if err != nil {
-		if cfg.FallbackAddress != "" {
-			logError("Invalid SRS: %s (%v), returning fallback_address: %s", address, err, cfg.FallbackAddress)
-			fmt.Fprintf(conn, "200 %s\n", cfg.FallbackAddress)
-		} else {
-			logError("Invalid SRS: %s (%v), no fallback_address set, 500 invalid request", address, err)
-			fmt.Fprintf(conn, "500 invalid request\n")
+	if strings.HasPrefix(address, "SRS0=") || strings.HasPrefix(address, "SRS1=") {
+		decoded, err := decodeSRS(address)
+		if err != nil {
+			if cfg.FallbackAddress != "" {
+				logError("[SRS] decode failed for <%s>: %v - using fallback_address: %s", address, err, cfg.FallbackAddress)
+				fmt.Fprintf(conn, "200 %s\n", cfg.FallbackAddress)
+				return
+			}
+
+			logError("[SRS] decode failed for <%s>: %v - no fallback_address, no rewrite", address, err)
+			fmt.Fprintf(conn, "500 no match\n")
+			return
 		}
-	} else {
-		logInfo("Resolved: %s → %s", address, decoded)
+
+		logInfo("[SRS] decoded: <%s> -> <%s>", address, decoded)
 		fmt.Fprintf(conn, "200 %s\n", decoded)
+		return
 	}
+
+	if cfg.FallbackAddress != "" {
+		logError("[ADDR] suspicious address pattern for <%s> - using fallback_address: %s", address, cfg.FallbackAddress)
+		fmt.Fprintf(conn, "200 %s\n", cfg.FallbackAddress)
+		return
+	}
+
+	logError("[ADDR] suspicious address pattern for <%s> - no fallback_address, no rewrite", address)
+	fmt.Fprintf(conn, "500 no match\n")
 }
 
 func decodeSRS(srs string) (string, error) {
 
 	// SRS0=hash=time=domain=full_local_part@something
 	// SRS1=hash=time=domain=full_local_part@something
-	parts := strings.SplitN(srs, "=", 5)
+	parts := strings.SplitN(srs, "=", -5) // more restrictions, only 5 parts allowed and 5th element not contains  "="
+	//parts := strings.SplitN(srs, "=", 5)
 	if len(parts) != 5 {
 		return "", fmt.Errorf("SRS format - wrong number of parts")
 	}
